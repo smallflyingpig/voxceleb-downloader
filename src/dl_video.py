@@ -44,19 +44,30 @@ def pad(im, h, w):
 
 
 def main(file="data/vox1_dev_txt/txt/id11249/Zre9ZFxh4e8/00001.txt", dst="./"):
+    print(f"download: {file}, save: {dst}")
     ID, REF, START_FRAME, FRAMES = extract(file)
-
-    yt = YouTube(f"https://www.youtube.com/watch?v={REF}")
-    stream = yt.streams.filter(file_extension="mp4").first()
-
+    
     # Save video as ID/REF/*.mp
     save_dir = f"{str(Path(dst))}/{ID}/{REF}/"
-    save_name = f"{Path(file).name}"
-    save_path = stream.download(output_path=save_dir, filename=save_name)
+    save_name = os.path.splitext(f"{Path(file).name}")[0]+'.mp4' 
+    save_path = os.path.join(save_dir, save_name)
+    if os.path.exists(save_path):
+        print(f"file exists (skip it): {save_path}")
+        return
+    save_name_video = f"video.mp4"
+    save_path_video = os.path.join(save_dir, save_name_video)
+    if not os.path.exists(save_path_video):
+        yt = YouTube(f"https://www.youtube.com/watch?v={REF}")
+        stream = yt.streams.filter(file_extension="mp4").first()
+        print(f"filter stream end.")
+        save_path_video = stream.download(output_path=save_dir, filename=save_name_video)
+        print(f"download end. save path: {save_path_video}")
+    else:
+        print(f"video file exist: {save_path_video}")
 
     # Cut video
     fps = 25  # stream.fps, vox-celeb 1 assumes 25 fps
-    clip = VideoFileClip(save_path).set_fps(fps)
+    clip = VideoFileClip(save_path_video).set_fps(fps)
     subclip = clip.subclip(
         (START_FRAME) / fps,
         (START_FRAME + len(FRAMES) - 1) / fps,
@@ -75,9 +86,13 @@ def main(file="data/vox1_dev_txt/txt/id11249/Zre9ZFxh4e8/00001.txt", dst="./"):
         im = im[y1:y2, x1:x2].copy()
         im = scale(pad(im, h, w), 160, 160)
         crops.append(im)
-
+    print(f"cut and scale end.")
     crop_clip = ImageSequenceClip(crops, fps=fps).set_audio(subclip.audio)
+    
+    if os.path.exists(save_path):
+        os.remove(save_path)
     crop_clip.write_videofile(save_path, fps=fps)
+    print(f"crop and save end.")
     return
 
 
