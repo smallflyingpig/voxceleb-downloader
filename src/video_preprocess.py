@@ -69,13 +69,15 @@ def detect_face_in_video(video_path, output_file):
     check_folder(os.path.dirname(output_file))
     fps = 25  # stream.fps, vox-celeb 1 assumes 25 fps
     clip = VideoFileClip(video_path).set_fps(fps)
-    detector = dlib.get_frontal_face_detector()
+    frames = int(clip.fps * clip.duration)
+    det_num = frames//100
+    detector_list = [dlib.get_frontal_face_detector() for _ in range(det_num)]
     rtn_list = []
     pool = Pool(4)
     bar = tqdm.tqdm(enumerate(clip.iter_frames()))
     for idx, frame in bar:
         # dets = detector(frame, 1)
-        rtn_list.append(pool.apply_async(detect_face_a_frame, args=(detector, frame, idx)))
+        rtn_list.append(pool.apply_async(detect_face_a_frame, args=(detector_list[idx%det_num], frame, idx)))
     bar.close()
     print(f"process...")
     pool.close()
